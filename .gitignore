@@ -23,3 +23,11 @@ go.work.sum
 
 # env file
 .env
+
+#
+# Project-specific ignores
+#
+
+index/
+papers/
+test.go
