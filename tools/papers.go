@@ -1,5 +1,5 @@
 // Utility functions for querying arXiv and downloading papers.
-package tools
+package papers
 
 import (
 	"fmt"
@@ -82,14 +82,14 @@ func FetchPapers(keyword string, count int) []Paper {
 		paper := Paper{
 			Id: strings.Replace(queryResults.Items[i].GUID, "http://arxiv.org/abs/", "", 1),
 			// Remove the injected newlines from the title
-			Title:            strings.Replace(queryResults.Items[i].Title, "\n", "", -1),
+			Title:            strings.ReplaceAll(queryResults.Items[i].Title, "\n", ""),
 			Summary:          queryResults.Items[i].Description,
 			Published:        queryResults.Items[i].Published,
 			JournalReference: getOptionalField("journal_ref", arxivFields),
 			Doi:              getOptionalField("doi", arxivFields),
 			PrimaryCategory:  arxivFields["primary_category"][0].Value,
 			Categories:       queryResults.Items[i].Categories,
-			// Annoyingly arXiv doesn't appear to populate the Links field with the PDF link, but according th the
+			// Annoyingly arXiv doesn't appear to populate the Links field with the PDF link, but according to the
 			// arXiv API specification we can construct the link.
 			PdfUrl:   strings.Replace(queryResults.Items[i].Link, "abs", "pdf", 1),
 			ArxivUrl: queryResults.Items[i].Link,

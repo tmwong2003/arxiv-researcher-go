@@ -25,6 +25,11 @@ go.work.sum
 .env
 
 #
+# IDE-specific ignores
+#
+.vscode/
+
+#
 # Project-specific ignores
 #
 
