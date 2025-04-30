@@ -3,17 +3,16 @@ package main
 import (
 	"log"
 
-	"tmwong.org/arxiv-researcher-go/index"
-	papers "tmwong.org/arxiv-researcher-go/tools"
+	"tmwong.org/arxiv-researcher-go/tools"
 )
 
 func main() {
 	var err error
-	index, err := index.GetIndex()
+	index, err := tools.GetIndex()
 	if err != nil {
 		log.Fatalln("Failed while creating index.")
 	}
-	papers := papers.FetchPapers("Language Models", 10)
+	papers := tools.FetchPapers("Language Models", 10)
 	if len(papers) == 0 {
 		log.Fatalln("Failed while getting papers: Got 0 papers")
 	}

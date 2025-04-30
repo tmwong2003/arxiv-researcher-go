@@ -1,5 +1,5 @@
 // Utility functions for querying arXiv and downloading papers.
-package papers
+package tools
 
 import (
 	"fmt"
