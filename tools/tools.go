@@ -10,12 +10,36 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
+const (
+	searchIndexToolName = "SearchIndex"
+)
+
+// Define the search index tool for use by an LLM.
+var searchIndexTool = llms.Tool{
+	Type: "function",
+	Function: &llms.FunctionDefinition{
+		Name:        searchIndexToolName,
+		Description: "Search the index for relevant papers about language models.",
+		Parameters: json.RawMessage(`{
+			"type": "object",
+			"properties": {
+				"query": {
+					"type": "string",
+					"description": "The query."
+				},
+				"n": {
+					"type": "integer",
+					"description": "The number of results to return."
+				}
+			},
+			"required": ["query", "n"]
+		}`),
+	},
+}
+
 // Define the tools avaialble for use by an LLM.
 var Tools = []llms.Tool{
-	{
-		Type:     "function",
-		Function: &searchIndexFunction,
-	},
+	searchIndexTool,
 }
 
 // Dispatch tool calls from an LLM to the appropriate handler function. Returns the supplied message history with the
@@ -30,7 +54,7 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 	for _, toolCall := range resp.Choices[0].ToolCalls {
 		log.Printf("Calling tool '%s'\n.", toolCall.FunctionCall.Name)
 		switch toolCall.FunctionCall.Name {
-		case "SearchIndex":
+		case searchIndexToolName:
 			var args struct {
 				Query string `json:"query"`
 				N     int    `json:"n"`
@@ -66,24 +90,4 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 	}
 
 	return messageHistory, nil
-}
-
-// Define the search index tool for use by an LLM.
-var searchIndexFunction = llms.FunctionDefinition{
-	Name:        "SearchIndex",
-	Description: "Search the index for relevant papers about language models.",
-	Parameters: json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"query": {
-				"type": "string",
-				"description": "The query."
-			},
-			"n": {
-				"type": "integer",
-				"description": "The number of results to return."
-			}
-		},
-		"required": ["query", "n"]
-	}`),
 }
