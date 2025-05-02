@@ -48,15 +48,15 @@ func DownloadPaper(fileName string, url string) {
 	}
 	filePath := filepath.Join(PapersDirectory, fileName)
 	if response, err := http.Get(url); err != nil {
-		log.Output(2, fmt.Sprintf("Got error downloading paper: %s", err))
+		log.Output(2, fmt.Sprintf("Failed while downloading paper: %s", err))
 	} else {
 		defer response.Body.Close()
 		if file, err := os.Create(filePath); err != nil {
-			log.Output(2, fmt.Sprintf("Got error creating file: %s", err))
+			log.Output(2, fmt.Sprintf("Failed while creating file: %s", err))
 		} else {
 			defer file.Close()
 			if _, err := io.Copy(file, response.Body); err != nil {
-				log.Output(2, fmt.Sprintf("Got error downloading paper: %s", err))
+				log.Output(2, fmt.Sprintf("Failed while downloading paper: %s", err))
 			}
 		}
 	}
