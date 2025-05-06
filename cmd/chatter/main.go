@@ -40,18 +40,30 @@ func main() {
 
 	query := strings.ReplaceAll(queryTemplate, "{topic}", "Language Models")
 	fmt.Println("Prompt:", query)
-
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, query)}
 	response, err := constants.Llm.GenerateContent(ctx, messageHistory, llms.WithTools(tools.Tools))
 	if err != nil {
-		log.Fatal("Failed while invoking the LLM: ", err)
+		log.Fatal("Failed while invoking the LLM:", err)
 	}
 
 	messageHistory = appendLlmResponse(messageHistory, response)
 	messageHistory, err = tools.ExecuteTools(ctx, constants.Llm, messageHistory, response)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed while executing tool calls for the LLM:", err)
+	}
+	fmt.Println("Response:", messageHistory[len(messageHistory)-1].Parts[0])
+
+	command := "Download any papers that you find interesting."
+	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, command))
+	response, err = constants.Llm.GenerateContent(ctx, messageHistory, llms.WithTools(tools.Tools))
+	if err != nil {
+		log.Fatal("Failed while invoking the LLM:", err)
 	}
 
+	messageHistory = appendLlmResponse(messageHistory, response)
+	messageHistory, err = tools.ExecuteTools(ctx, constants.Llm, messageHistory, response)
+	if err != nil {
+		log.Fatal("Failed while executing tool calls for the LLM:", err)
+	}
 	fmt.Println("Response:", messageHistory[len(messageHistory)-1].Parts[0])
 }

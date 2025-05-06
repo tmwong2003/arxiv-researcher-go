@@ -4,7 +4,6 @@ package tools
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 type Paper struct {
 	Id               string
 	Title            string
+	Authors          []string
 	Summary          string
 	Published        string
 	JournalReference string
@@ -26,7 +26,6 @@ type Paper struct {
 	Categories       []string
 	PdfUrl           string
 	ArxivUrl         string
-	Authors          []string
 }
 
 const (
@@ -41,25 +40,26 @@ func getOptionalField(key string, fields map[string][]ext.Extension) string {
 	}
 }
 
-func DownloadPaper(fileName string, url string) {
+func DownloadPaper(fileName string, url string) error {
 	// Download the paper from the specified URL to the papers directory with the specified file name.
 	if err := os.MkdirAll(PapersDirectory, 0755); err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed while downloading from '%s': %w", url, err)
 	}
 	filePath := filepath.Join(PapersDirectory, fileName)
 	if response, err := http.Get(url); err != nil {
-		log.Output(2, fmt.Sprintf("Failed while downloading paper: %s", err))
+		return fmt.Errorf("failed while downloading from '%s': %w", url, err)
 	} else {
 		defer response.Body.Close()
 		if file, err := os.Create(filePath); err != nil {
-			log.Output(2, fmt.Sprintf("Failed while creating file: %s", err))
+			return fmt.Errorf("failed while creating file '%s': %w", filePath, err)
 		} else {
 			defer file.Close()
 			if _, err := io.Copy(file, response.Body); err != nil {
-				log.Output(2, fmt.Sprintf("Failed while downloading paper: %s", err))
+				return fmt.Errorf("failed while downloading from '%s': %w", url, err)
 			}
 		}
 	}
+	return nil
 }
 
 func FetchPapers(keyword string, count int) []Paper {
@@ -83,6 +83,7 @@ func FetchPapers(keyword string, count int) []Paper {
 			Id: strings.Replace(queryResults.Items[i].GUID, "http://arxiv.org/abs/", "", 1),
 			// Remove the injected newlines from the title
 			Title:            strings.ReplaceAll(queryResults.Items[i].Title, "\n", ""),
+			Authors:          authors,
 			Summary:          queryResults.Items[i].Description,
 			Published:        queryResults.Items[i].Published,
 			JournalReference: getOptionalField("journal_ref", arxivFields),
@@ -93,7 +94,6 @@ func FetchPapers(keyword string, count int) []Paper {
 			// arXiv API specification we can construct the link.
 			PdfUrl:   strings.Replace(queryResults.Items[i].Link, "abs", "pdf", 1),
 			ArxivUrl: queryResults.Items[i].Link,
-			Authors:  authors,
 		}
 		papers = append(papers, paper)
 	}

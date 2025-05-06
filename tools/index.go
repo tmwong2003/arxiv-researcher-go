@@ -41,24 +41,22 @@ func GetIndex() (*Index, error) {
 func (index *Index) AddPapers(papers []Paper) error {
 	documents := make([]schema.Document, len(papers))
 	for i, paper := range papers {
-		content := make([]string, 9)
+		content := make([]string, 2)
 		content[0] = fmt.Sprintf("Title: {%s}", paper.Title)
-		content[1] = fmt.Sprintf("Authors: {%s}", strings.Join(paper.Authors, ", "))
-		content[2] = fmt.Sprintf("Summary: {%s}", paper.Summary)
-		content[3] = fmt.Sprintf("Published: {%s}", paper.Published)
-		content[4] = fmt.Sprintf("DOI: {%s}", paper.Doi)
-		content[5] = fmt.Sprintf("Primary Category: {%s}", paper.PrimaryCategory)
-		content[6] = fmt.Sprintf("Categories: {%s}", strings.Join(paper.Categories, ", "))
-		content[7] = fmt.Sprintf("PDF URL: {%s}", paper.PdfUrl)
-		content[8] = fmt.Sprintf("arxiv URL: {%s}", paper.ArxivUrl)
+		content[1] = fmt.Sprintf("Summary: {%s}", paper.Summary)
 		documents[i] = schema.Document{
-			PageContent: strings.Join(content, "\n"),
 			Metadata: map[string]any{
-				"Title":   paper.Title,
-				"Authors": strings.Join(paper.Authors, ", "),
-				"DOI":     paper.Doi,
-				"PDF URL": paper.PdfUrl,
+				"Title":             paper.Title,
+				"Authors":           strings.Join(paper.Authors, ", "),
+				"Published":         paper.Published,
+				"Journal Reference": paper.JournalReference,
+				"DOI":               paper.Doi,
+				"Primary Category":  paper.PrimaryCategory,
+				"Categories":        strings.Join(paper.Categories, ", "),
+				"PDF URL":           paper.PdfUrl,
+				"arxiv URL":         paper.ArxivUrl,
 			},
+			PageContent: strings.Join(content, "\n"),
 		}
 	}
 	_, err := index.store.AddDocuments(index.context, documents)
