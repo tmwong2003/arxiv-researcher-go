@@ -35,6 +35,18 @@ func appendLlmResponse(messageHistory []llms.MessageContent, response *llms.Cont
 	return append(messageHistory, responseText)
 }
 
+func executeToolCalls(ctx context.Context, messageHistory []llms.MessageContent, response *llms.ContentResponse) []llms.MessageContent {
+	messageHistory = appendLlmResponse(messageHistory, response)
+	messageHistory, responseCount, err := tools.ExecuteTools(ctx, constants.Llm, messageHistory, response)
+	if err != nil {
+		log.Fatal("Failed while executing tool calls for the LLM:", err)
+	}
+	for i := responseCount; i > 0; i-- {
+		fmt.Println(messageHistory[len(messageHistory)-i].Parts[0])
+	}
+	return messageHistory
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -45,13 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed while invoking the LLM:", err)
 	}
-
-	messageHistory = appendLlmResponse(messageHistory, response)
-	messageHistory, err = tools.ExecuteTools(ctx, constants.Llm, messageHistory, response)
-	if err != nil {
-		log.Fatal("Failed while executing tool calls for the LLM:", err)
-	}
-	fmt.Println("Response:", messageHistory[len(messageHistory)-1].Parts[0])
+	messageHistory = executeToolCalls(ctx, messageHistory, response)
 
 	command := "Download any papers that you find interesting."
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, command))
@@ -59,11 +65,5 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed while invoking the LLM:", err)
 	}
-
-	messageHistory = appendLlmResponse(messageHistory, response)
-	messageHistory, err = tools.ExecuteTools(ctx, constants.Llm, messageHistory, response)
-	if err != nil {
-		log.Fatal("Failed while executing tool calls for the LLM:", err)
-	}
-	fmt.Println("Response:", messageHistory[len(messageHistory)-1].Parts[0])
+	executeToolCalls(ctx, messageHistory, response)
 }

@@ -66,15 +66,16 @@ var Tools = []llms.Tool{
 	searchIndexTool,
 }
 
-// Dispatch tool calls from an LLM to the appropriate handler function. Returns the supplied message history with the
-// responses from successful tool calls appended.
-func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.MessageContent, resp *llms.ContentResponse) ([]llms.MessageContent, error) {
+// Dispatch tool calls from an LLM to the appropriate handler function. Returns the supplied message history extended
+// with the responses from successful tool calls, and the number of responses added.
+func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.MessageContent, resp *llms.ContentResponse) ([]llms.MessageContent, int, error) {
 	var err error
 	index, err := GetIndex()
 	if err != nil {
-		return messageHistory, err
+		return messageHistory, 0, err
 	}
 	log.Printf("Executing '%d' tool calls\n", len(resp.Choices[0].ToolCalls))
+	var responseCount = 0
 	for _, toolCall := range resp.Choices[0].ToolCalls {
 		log.Printf("Calling tool '%s'\n.", toolCall.FunctionCall.Name)
 		var response llms.MessageContent
@@ -85,10 +86,10 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 				URL      string `json:"url"`
 			}
 			if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
-				return messageHistory, fmt.Errorf("failed while unmarshalling arguments: %w", err)
+				return messageHistory, responseCount, fmt.Errorf("failed while unmarshalling arguments: %w", err)
 			}
 			if err := DownloadPaper(args.FileName, args.URL); err != nil {
-				return messageHistory, fmt.Errorf("failed while downloading paper: %w", err)
+				return messageHistory, responseCount, fmt.Errorf("failed while downloading paper: %w", err)
 			}
 			content := fmt.Sprintf("OK, I have downloaded the paper '%s' from '%s'.", args.FileName, args.URL)
 			response = llms.MessageContent{
@@ -107,11 +108,11 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 				N     int    `json:"n"`
 			}
 			if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
-				return messageHistory, fmt.Errorf("failed while unmarshalling arguments: %w", err)
+				return messageHistory, responseCount, fmt.Errorf("failed while unmarshalling arguments: %w", err)
 			}
 			rawDocuments, err := index.SearchIndex(args.Query, args.N)
 			if err != nil {
-				return messageHistory, fmt.Errorf("failed while searching index: %w", err)
+				return messageHistory, responseCount, fmt.Errorf("failed while searching index: %w", err)
 			}
 			cookedDocuments := make([]map[string]string, len(rawDocuments))
 			for i, document := range rawDocuments {
@@ -124,7 +125,7 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 			}
 			content, err := json.MarshalIndent(cookedDocuments, "", "  ")
 			if err != nil {
-				return messageHistory, fmt.Errorf("failed while marshalling documents: %w", err)
+				return messageHistory, responseCount, fmt.Errorf("failed while marshalling documents: %w", err)
 			}
 			response = llms.MessageContent{
 				Role: llms.ChatMessageTypeTool,
@@ -137,9 +138,10 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 				},
 			}
 		default:
-			return messageHistory, fmt.Errorf("got unsupported tool call: '%s'", toolCall.FunctionCall.Name)
+			return messageHistory, responseCount, fmt.Errorf("got unsupported tool call: '%s'", toolCall.FunctionCall.Name)
 		}
 		messageHistory = append(messageHistory, response)
+		responseCount++
 	}
-	return messageHistory, nil
+	return messageHistory, responseCount, nil
 }
