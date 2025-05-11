@@ -8,27 +8,29 @@ import (
 
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/tools"
+	lcgTools "github.com/tmc/langchaingo/tools"
 	"tmwong.org/arxiv-researcher-go/constants"
-	mytools "tmwong.org/arxiv-researcher-go/tools"
+	"tmwong.org/arxiv-researcher-go/tools"
 )
 
 const (
 	queryTemplate = `
-Find papers related to '{topic}' in your knowledge database,
-and for each paper provide the title, summary, authors, and download link.'
+Find papers related to '{topic}' in your knowledge database, and for each paper provide the title, summary, authors,
+and download link. If you find no relevant papers in your database, find papers in arXiv related to '{topic}' and
+provide the title, summary, authors, and download link. If you still find no papers, please say "No papers found".
 `
 )
 
 func run() error {
-	agentTools := []tools.Tool{
-		mytools.IndexSearcher{},
+	agentTools := []lcgTools.Tool{
+		tools.ArxivSearcher{},
+		tools.IndexSearcher{},
 	}
 
 	agent := agents.NewOneShotAgent(constants.Llm, agentTools, agents.WithMaxIterations(10))
 	executor := agents.NewExecutor(agent)
 
-	query := strings.ReplaceAll(queryTemplate, "{topic}", "Quantum field theory")
+	query := strings.ReplaceAll(queryTemplate, "{topic}", "Diffusion Models")
 	fmt.Println("Prompt: ", query)
 	answer, err := chains.Run(context.Background(), executor, query)
 	fmt.Println(answer)

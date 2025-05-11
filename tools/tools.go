@@ -102,7 +102,7 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 				},
 			}
 		case indexSearcherName:
-			result, err := index.SearchIndex(toolCall.FunctionCall.Arguments)
+			_, result, err := index.SearchIndex(toolCall.FunctionCall.Arguments)
 			if err != nil {
 				return messageHistory, responseCount, fmt.Errorf("failed while searching index: %w", err)
 			}

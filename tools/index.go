@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/tmc/langchaingo/callbacks"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/vectorstores/pinecone"
@@ -19,19 +17,6 @@ type Index struct {
 	context context.Context
 	store   pinecone.Store
 }
-
-type IndexSearcher struct {
-	CallbacksHandler callbacks.Handler
-}
-
-const (
-	indexSearcherName        = "IndexSearcher"
-	indexSearcherDescription = `
-Search the document index for papers that are relevant regarding a user query. Invoked with a JSON object containing
-the query "query" and the number "n" of results to return. Returns a JSON array of dictionary objects containing the
-title, summary, authors, and PDF download link for each paper.
-	`
-)
 
 var index *Index = nil
 
@@ -83,18 +68,18 @@ func (index *Index) AddPapers(papers []Paper) error {
 	return err
 }
 
-func (index *Index) SearchIndex(input string) (string, error) {
+func (index *Index) SearchIndex(input string) (int, string, error) {
 	// Perform a similarity search using the supplied query. Returns up to the top n documents similar to the query.
 	var args struct {
 		Query string `json:"query"`
 		N     int    `json:"n"`
 	}
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
-		return fmt.Sprintf("failed while unmarshalling arguments: %s", err), err
+		return -1, fmt.Sprintf("failed while unmarshalling arguments: %s", err), err
 	}
 	rawDocuments, err := index.store.SimilaritySearch(index.context, args.Query, args.N)
 	if err != nil {
-		return fmt.Sprintf("failed while searching index: %s", err), err
+		return -1, fmt.Sprintf("failed while searching index: %s", err), err
 	}
 	cookedDocuments := make([]map[string]string, len(rawDocuments))
 	for i, document := range rawDocuments {
@@ -107,48 +92,8 @@ func (index *Index) SearchIndex(input string) (string, error) {
 	}
 	content, err := json.MarshalIndent(cookedDocuments, "", "  ")
 	if err != nil {
-		return fmt.Sprint("failed while marshalling documents: ", err), err
+		return -1, fmt.Sprint("failed while marshalling documents: ", err), err
 	}
 	result := string(content)
-	return result, nil
-}
-
-func (indexSearcher IndexSearcher) Name() string {
-	return indexSearcherName
-}
-
-func (indexSearcher IndexSearcher) Description() string {
-	return indexSearcherDescription
-}
-
-func (indexSearcher IndexSearcher) Call(ctx context.Context, input string) (string, error) {
-	log.Printf("Calling tool '%s' with input '%s'.\n", indexSearcher.Name(), input)
-	if indexSearcher.CallbacksHandler != nil {
-		indexSearcher.CallbacksHandler.HandleToolStart(ctx, input)
-	}
-	index, err := GetIndex()
-	if err != nil {
-		// Failing to get the index is a fatal error, so propagate it to the caller.
-		errMessage := fmt.Sprintf("failed while getting index: %s", err)
-		if indexSearcher.CallbacksHandler != nil {
-			indexSearcher.CallbacksHandler.HandleToolEnd(ctx, errMessage)
-		}
-		return errMessage, err
-	}
-	result, err := index.SearchIndex(input)
-	if err != nil {
-		// Failing to get a result is _not_ a fatal error, because the calling agent can attempt to call the tool
-		// again with a different input format. We have observed the agent iterate through different input formats
-		// until it discovers the "right" arguments to pass.
-		errMessage := fmt.Sprintf("failed while searching index: %s", err)
-		if indexSearcher.CallbacksHandler != nil {
-			indexSearcher.CallbacksHandler.HandleToolEnd(ctx, errMessage)
-		}
-		log.Println(errMessage)
-		return errMessage, nil
-	}
-	if indexSearcher.CallbacksHandler != nil {
-		indexSearcher.CallbacksHandler.HandleToolEnd(ctx, result)
-	}
-	return result, nil
+	return len(cookedDocuments), result, nil
 }
