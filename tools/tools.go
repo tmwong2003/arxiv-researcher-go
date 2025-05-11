@@ -11,7 +11,6 @@ import (
 
 const (
 	downloadPaperToolName = "DownloadPaper"
-	searchIndexToolName   = "SearchIndex"
 )
 
 // Define the paper download tool for use by an LLM.
@@ -41,8 +40,9 @@ var downloadPaperTool = llms.Tool{
 var searchIndexTool = llms.Tool{
 	Type: "function",
 	Function: &llms.FunctionDefinition{
-		Name:        searchIndexToolName,
-		Description: "Search the index for relevant papers about language models.",
+		Name:        indexSearcherName,
+		Description: indexSearcherDescription,
+
 		Parameters: json.RawMessage(`{
 			"type": "object",
 			"properties": {
@@ -62,7 +62,6 @@ var searchIndexTool = llms.Tool{
 
 // Define the tools avaialble for use by an LLM.
 var Tools = []llms.Tool{
-	downloadPaperTool,
 	searchIndexTool,
 }
 
@@ -102,30 +101,10 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 					},
 				},
 			}
-		case searchIndexToolName:
-			var args struct {
-				Query string `json:"query"`
-				N     int    `json:"n"`
-			}
-			if err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &args); err != nil {
-				return messageHistory, responseCount, fmt.Errorf("failed while unmarshalling arguments: %w", err)
-			}
-			rawDocuments, err := index.SearchIndex(args.Query, args.N)
+		case indexSearcherName:
+			result, err := index.SearchIndex(toolCall.FunctionCall.Arguments)
 			if err != nil {
 				return messageHistory, responseCount, fmt.Errorf("failed while searching index: %w", err)
-			}
-			cookedDocuments := make([]map[string]string, len(rawDocuments))
-			for i, document := range rawDocuments {
-				cookedDocuments[i] = map[string]string{
-					"Title":   fmt.Sprintf("%s", document.Metadata["Title"]),
-					"Authors": fmt.Sprintf("%s", document.Metadata["Authors"]),
-					"PDF URL": fmt.Sprintf("%s", document.Metadata["PDF URL"]),
-					"Summary": document.PageContent,
-				}
-			}
-			content, err := json.MarshalIndent(cookedDocuments, "", "  ")
-			if err != nil {
-				return messageHistory, responseCount, fmt.Errorf("failed while marshalling documents: %w", err)
 			}
 			response = llms.MessageContent{
 				Role: llms.ChatMessageTypeTool,
@@ -133,7 +112,7 @@ func ExecuteTools(ctx context.Context, llm llms.Model, messageHistory []llms.Mes
 					llms.ToolCallResponse{
 						ToolCallID: toolCall.ID,
 						Name:       toolCall.FunctionCall.Name,
-						Content:    string(content),
+						Content:    result,
 					},
 				},
 			}

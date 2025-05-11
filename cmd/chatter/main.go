@@ -39,7 +39,7 @@ func executeToolCalls(ctx context.Context, messageHistory []llms.MessageContent,
 	messageHistory = appendLlmResponse(messageHistory, response)
 	messageHistory, responseCount, err := tools.ExecuteTools(ctx, constants.Llm, messageHistory, response)
 	if err != nil {
-		log.Fatal("Failed while executing tool calls for the LLM:", err)
+		log.Fatal("failed while executing tool calls for the LLM: ", err)
 	}
 	for i := responseCount; i > 0; i-- {
 		fmt.Println(messageHistory[len(messageHistory)-i].Parts[0])
@@ -51,11 +51,11 @@ func main() {
 	ctx := context.Background()
 
 	query := strings.ReplaceAll(queryTemplate, "{topic}", "Language Models")
-	fmt.Println("Prompt:", query)
+	fmt.Println("Prompt: ", query)
 	messageHistory := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, query)}
 	response, err := constants.Llm.GenerateContent(ctx, messageHistory, llms.WithTools(tools.Tools))
 	if err != nil {
-		log.Fatal("Failed while invoking the LLM:", err)
+		log.Fatal("failed while invoking the LLM: ", err)
 	}
 	messageHistory = executeToolCalls(ctx, messageHistory, response)
 
@@ -63,7 +63,7 @@ func main() {
 	messageHistory = append(messageHistory, llms.TextParts(llms.ChatMessageTypeHuman, command))
 	response, err = constants.Llm.GenerateContent(ctx, messageHistory, llms.WithTools(tools.Tools))
 	if err != nil {
-		log.Fatal("Failed while invoking the LLM:", err)
+		log.Fatal("failed while invoking the LLM: ", err)
 	}
 	executeToolCalls(ctx, messageHistory, response)
 }

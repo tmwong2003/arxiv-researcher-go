@@ -18,13 +18,13 @@ func init() {
 	var err error
 	err = godotenv.Load("/Users/tmwong/code/arxiv-researcher-go/.env")
 	if err != nil {
-		log.Fatalln("Failed loading .env file:", err)
+		log.Fatalln("failed while loading .env file: ", err)
 	}
 	Llm, err = openai.New([]openai.Option{
 		openai.WithEmbeddingModel(llmEmbedding),
 		openai.WithModel(llmModel),
 	}...)
 	if err != nil {
-		log.Fatalln("Failed initializing LLM:", err)
+		log.Fatalln("failed while initializing LLM: ", err)
 	}
 }
