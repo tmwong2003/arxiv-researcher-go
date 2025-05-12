@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -66,34 +65,4 @@ func (index *Index) AddPapers(papers []Paper) error {
 	}
 	_, err := index.store.AddDocuments(index.context, documents)
 	return err
-}
-
-func (index *Index) SearchIndex(input string) (int, string, error) {
-	// Perform a similarity search using the supplied query. Returns up to the top n documents similar to the query.
-	var args struct {
-		Query string `json:"query"`
-		N     int    `json:"n"`
-	}
-	if err := json.Unmarshal([]byte(input), &args); err != nil {
-		return -1, fmt.Sprintf("failed while unmarshalling arguments: %s", err), err
-	}
-	rawDocuments, err := index.store.SimilaritySearch(index.context, args.Query, args.N)
-	if err != nil {
-		return -1, fmt.Sprintf("failed while searching index: %s", err), err
-	}
-	cookedDocuments := make([]map[string]string, len(rawDocuments))
-	for i, document := range rawDocuments {
-		cookedDocuments[i] = map[string]string{
-			"Title":   fmt.Sprintf("%s", document.Metadata["Title"]),
-			"Authors": fmt.Sprintf("%s", document.Metadata["Authors"]),
-			"PDF URL": fmt.Sprintf("%s", document.Metadata["PDF URL"]),
-			"Summary": document.PageContent,
-		}
-	}
-	content, err := json.MarshalIndent(cookedDocuments, "", "  ")
-	if err != nil {
-		return -1, fmt.Sprint("failed while marshalling documents: ", err), err
-	}
-	result := string(content)
-	return len(cookedDocuments), result, nil
 }

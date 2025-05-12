@@ -15,9 +15,9 @@ import (
 
 const (
 	queryTemplate = `
-Find papers related to '{topic}' in your knowledge database, and for each paper provide the title, summary, authors,
-and download link. If you find no relevant papers in your database, find papers in arXiv related to '{topic}' and
-provide the title, summary, authors, and download link. If you still find no papers, please say "No papers found".
+Find papers related to '{topic}' in your knowledge database. If you find no relevant papers in your database, find
+papers in arXiv related to '{topic}'. For each relevant papers you find, provide the title, summary, authors,
+and download link. If you find no relevant papers in either the database or arXiv, please say "No papers found".
 `
 )
 

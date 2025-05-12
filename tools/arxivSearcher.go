@@ -10,6 +10,8 @@ import (
 	"github.com/tmc/langchaingo/callbacks"
 )
 
+// ArxivSearcher implements the LangChainGo Tool interface to search a arXiv for papers relevant to a user query.
+
 type ArxivSearcher struct {
 	CallbacksHandler callbacks.Handler
 }
@@ -23,21 +25,18 @@ authors, and PDF download link for each paper.
 `
 )
 
-// ArxivSearcher is a tool that implements the LangChainGo Tool interface to search a arXiv for papers relevant to a
-// user query.
-
-func (arxivSearcher ArxivSearcher) Name() string {
+func (tool ArxivSearcher) Name() string {
 	return arxivSearcherName
 }
 
-func (arxivSearcher ArxivSearcher) Description() string {
+func (tool ArxivSearcher) Description() string {
 	return arxivSearcherDescription
 }
 
-func (arxivSearcher ArxivSearcher) Call(ctx context.Context, input string) (string, error) {
-	log.Printf("Calling tool '%s' with input '%s'.\n", arxivSearcher.Name(), input)
-	if arxivSearcher.CallbacksHandler != nil {
-		arxivSearcher.CallbacksHandler.HandleToolStart(ctx, input)
+func (tool ArxivSearcher) Call(ctx context.Context, input string) (string, error) {
+	log.Printf("Calling tool '%s' with input '%s'.\n", tool.Name(), input)
+	if tool.CallbacksHandler != nil {
+		tool.CallbacksHandler.HandleToolStart(ctx, input)
 	}
 	var args struct {
 		Query string `json:"query"`
@@ -46,7 +45,11 @@ func (arxivSearcher ArxivSearcher) Call(ctx context.Context, input string) (stri
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
 		// Failing to unmarshall is _not_ a fatal error. We have observed the agent iterate through different input
 		// JSON formats until it discovers the "right" arguments to pass.
-		return fmt.Sprintf("failed while unmarshalling arguments: %s", err), nil
+		errMessage := fmt.Sprintf("failed while unmarshalling arguments: %s", err)
+		if tool.CallbacksHandler != nil {
+			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+		}
+		return errMessage, nil
 	}
 	rawPapers := FetchPapers(args.Query, args.N)
 	cookedPapers := make([]map[string]string, len(rawPapers))
@@ -61,7 +64,11 @@ func (arxivSearcher ArxivSearcher) Call(ctx context.Context, input string) (stri
 	content, err := json.MarshalIndent(cookedPapers, "", "  ")
 	if err != nil {
 		// Not great, but maybe the agent will have another tool at its disposal to find results.
-		return fmt.Sprint("failed while marshalling documents: ", err), nil
+		errMessage := fmt.Sprintf("failed while marshalling documents: %s", err)
+		if tool.CallbacksHandler != nil {
+			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+		}
+		return errMessage, nil
 	}
 	result := string(content)
 	return result, nil
