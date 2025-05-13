@@ -19,9 +19,14 @@ type IndexSearcher struct {
 const (
 	indexSearcherName        = "IndexSearcher"
 	indexSearcherDescription = `
-Search the document index for relevant papers to a user keyword query. Invoked with a JSON object containing the query
-"query" and the number "n" of results to return. Returns a JSON array of dictionary objects containing the title,
-summary, authors, and PDF download link for each paper.
+Search the document index for relevant papers to a user keyword query.
+
+JSON input format: { "query": "<user query>", "n": <number of results> }
+
+Success: Returns a JSON array of dictionary objects containing the title, summary, authors, and PDF download link for
+each paper
+
+Failure: Returns an error message.
 `
 )
 
@@ -41,11 +46,10 @@ func (tool IndexSearcher) Call(ctx context.Context, input string) (string, error
 	index, err := GetIndex()
 	if err != nil {
 		// Failing to get the index is a fatal error, so propagate it to the caller.
-		errMessage := fmt.Sprintf("failed while getting index: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, err
+		return makeToolErrorMessage(tool, "failed while getting index", err), err
 	}
 	var args struct {
 		Query string `json:"query"`
@@ -54,21 +58,19 @@ func (tool IndexSearcher) Call(ctx context.Context, input string) (string, error
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
 		// Failing to unmarshall is _not_ a fatal error. We have observed an agent iterate through different input
 		// JSON formats until it discovers the "right" arguments to pass.
-		errMessage := fmt.Sprintf("failed while unmarshalling arguments: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while unmarshalling arguments: %s", err), nil
 	}
 	rawDocuments, err := index.store.SimilaritySearch(index.context, args.Query, args.N)
 	if err != nil {
 		// Failing to get a result from the index is _not_ a fatal error, because the calling agent have another tool
 		// available for searching. We return the error message to the agent so it can decide what to do with it.
-		errMessage := fmt.Sprintf("failed while searching index: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while searching index", err), nil
 	}
 	cookedDocuments := make([]map[string]string, len(rawDocuments))
 	for i, document := range rawDocuments {
@@ -82,11 +84,10 @@ func (tool IndexSearcher) Call(ctx context.Context, input string) (string, error
 	content, err := json.MarshalIndent(cookedDocuments, "", "  ")
 	if err != nil {
 		// Not great, but maybe the agent will have another tool at its disposal to find results.
-		errMessage := fmt.Sprintf("failed while marshalling documents: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while marshalling documents: %s", err), nil
 	}
 	result := string(content)
 	log.Printf("Tool '%s' returned with '%d' results.\n", tool.Name(), len(rawDocuments))

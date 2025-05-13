@@ -16,18 +16,27 @@ import (
 const (
 	queryTemplate = `
 Find papers related to '{topic}' in your knowledge database. If you find no relevant papers in your database, find
-papers in arXiv related to '{topic}'. For each relevant papers you find, provide the title, summary, authors,
-and download link. If you find no relevant papers in either the database or arXiv, please say "No papers found".
+papers in arXiv related to '{topic}'. For each relevant paper you find, provide the title, summary, authors,
+and download link, and download the paper. If you find no relevant papers in either the database or arXiv, please say
+"No papers found".
 `
 )
 
+var handler = tools.LogHandler{}
+
 func run() error {
 	agentTools := []lcgTools.Tool{
-		tools.ArxivSearcher{},
-		tools.IndexSearcher{},
+		tools.ArxivSearcher{CallbacksHandler: handler},
+		tools.IndexSearcher{CallbacksHandler: handler},
+		tools.PaperDownloader{CallbacksHandler: handler},
 	}
 
-	agent := agents.NewOneShotAgent(constants.Llm, agentTools, agents.WithMaxIterations(10))
+	agent := agents.NewOneShotAgent(
+		constants.Llm,
+		agentTools,
+		agents.WithCallbacksHandler(handler),
+		agents.WithMaxIterations(10),
+	)
 	executor := agents.NewExecutor(agent)
 
 	query := strings.ReplaceAll(queryTemplate, "{topic}", "Diffusion Models")

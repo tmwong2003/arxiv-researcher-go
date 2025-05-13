@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 
@@ -19,9 +18,14 @@ type ArxivSearcher struct {
 const (
 	arxivSearcherName        = "ArxivSearcher"
 	arxivSearcherDescription = `
-Search arXiv for relevant papers to a user keyword query. Invoked with a JSON object containing the query "query" and
-the number "n" of results to return. Returns a JSON array of dictionary objects containing the title, summary,
-authors, and PDF download link for each paper.
+Search arXiv for relevant papers to a user keyword query.
+
+JSON input format: { "query": "<user query>", "n": <number of results> }
+
+Success: Returns a JSON array of dictionary objects containing the title, summary, authors, and PDF download link for
+each paper
+
+Failure: Returns an error message.
 `
 )
 
@@ -45,11 +49,10 @@ func (tool ArxivSearcher) Call(ctx context.Context, input string) (string, error
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
 		// Failing to unmarshall is _not_ a fatal error. We have observed the agent iterate through different input
 		// JSON formats until it discovers the "right" arguments to pass.
-		errMessage := fmt.Sprintf("failed while unmarshalling arguments: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while unmarshalling arguments: %s", err), nil
 	}
 	rawPapers := FetchPapers(args.Query, args.N)
 	cookedPapers := make([]map[string]string, len(rawPapers))
@@ -64,11 +67,10 @@ func (tool ArxivSearcher) Call(ctx context.Context, input string) (string, error
 	content, err := json.MarshalIndent(cookedPapers, "", "  ")
 	if err != nil {
 		// Not great, but maybe the agent will have another tool at its disposal to find results.
-		errMessage := fmt.Sprintf("failed while marshalling documents: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while marshalling documents: %s", err), nil
 	}
 	result := string(content)
 	return result, nil

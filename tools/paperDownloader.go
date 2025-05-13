@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/tmc/langchaingo/callbacks"
@@ -17,7 +16,16 @@ type PaperDownloader struct {
 
 const (
 	paperDownloaderName        = "PaperDownloader"
-	paperDownloaderDescription = "Download a paper from a URL."
+	paperDownloaderDescription = `
+Download a paper from a URL. The caller should ensure that the file name is a valid file name for the local file
+system and ends with ".pdf".
+
+JSON input format: { "fileName": "<file name>", "ul": "<paper URL>" }
+
+Sucess: Returns a success message.
+
+Failure: Returns an error message.
+`
 )
 
 func (tool PaperDownloader) Name() string {
@@ -38,20 +46,18 @@ func (tool PaperDownloader) Call(ctx context.Context, input string) (string, err
 	if err := json.Unmarshal([]byte(input), &args); err != nil {
 		// Failing to unmarshall is _not_ a fatal error. We have observed the agent iterate through different input
 		// JSON formats until it discovers the "right" arguments to pass.
-		errMessage := fmt.Sprintf("failed while unmarshalling arguments: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while unmarshalling arguments: %s", err), nil
 	}
 	err := DownloadPaper(args.FileName, args.URL)
 	if err != nil {
 		// Failing to download the paper is non-fatal. Perhaps the URL is bad.
-		errMessage := fmt.Sprintf("failed while downloading paper: %s", err)
 		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolEnd(ctx, errMessage)
+			tool.CallbacksHandler.HandleToolError(ctx, err)
 		}
-		return errMessage, nil
+		return makeToolErrorMessage(tool, "failed while downloading paper", err), nil
 	}
 	return "Paper downloaded successfully.", nil
 }
