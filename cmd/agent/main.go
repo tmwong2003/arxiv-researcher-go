@@ -22,19 +22,16 @@ and download link, and download the paper. If you find no relevant papers in eit
 `
 )
 
-var handler = tools.LogHandler{}
-
 func run() error {
 	agentTools := []lcgTools.Tool{
-		tools.ArxivSearcher{CallbacksHandler: handler},
-		tools.IndexSearcher{CallbacksHandler: handler},
-		tools.PaperDownloader{CallbacksHandler: handler},
+		tools.ArxivSearcher,
+		tools.IndexSearcher,
+		tools.PaperDownloader,
 	}
 
 	agent := agents.NewOneShotAgent(
 		constants.Llm,
 		agentTools,
-		agents.WithCallbacksHandler(handler),
 		agents.WithMaxIterations(10),
 	)
 	executor := agents.NewExecutor(agent)

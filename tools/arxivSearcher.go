@@ -3,17 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
-
-	"github.com/tmc/langchaingo/callbacks"
 )
-
-// ArxivSearcher implements the LangChainGo Tool interface to search a arXiv for papers relevant to a user query.
-
-type ArxivSearcher struct {
-	CallbacksHandler callbacks.Handler
-}
 
 const (
 	arxivSearcherName        = "ArxivSearcher"
@@ -29,31 +22,12 @@ Failure: Returns an error message.
 `
 )
 
-func (tool ArxivSearcher) Name() string {
-	return arxivSearcherName
+type arxivSearcherArgs struct {
+	Query string `json:"query"`
+	N     int    `json:"n"`
 }
 
-func (tool ArxivSearcher) Description() string {
-	return arxivSearcherDescription
-}
-
-func (tool ArxivSearcher) Call(ctx context.Context, input string) (string, error) {
-	log.Printf("Calling tool '%s' with input '%s'.\n", tool.Name(), input)
-	if tool.CallbacksHandler != nil {
-		tool.CallbacksHandler.HandleToolStart(ctx, input)
-	}
-	var args struct {
-		Query string `json:"query"`
-		N     int    `json:"n"`
-	}
-	if err := json.Unmarshal([]byte(input), &args); err != nil {
-		// Failing to unmarshall is _not_ a fatal error. We have observed the agent iterate through different input
-		// JSON formats until it discovers the "right" arguments to pass.
-		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolError(ctx, err)
-		}
-		return makeToolErrorMessage(tool, "failed while unmarshalling arguments: %s", err), nil
-	}
+func searchArxiv(_ context.Context, args arxivSearcherArgs) (string, error) {
 	rawPapers := FetchPapers(args.Query, args.N)
 	cookedPapers := make([]map[string]string, len(rawPapers))
 	for i, paper := range rawPapers {
@@ -66,12 +40,16 @@ func (tool ArxivSearcher) Call(ctx context.Context, input string) (string, error
 	}
 	content, err := json.MarshalIndent(cookedPapers, "", "  ")
 	if err != nil {
-		// Not great, but maybe the agent will have another tool at its disposal to find results.
-		if tool.CallbacksHandler != nil {
-			tool.CallbacksHandler.HandleToolError(ctx, err)
-		}
-		return makeToolErrorMessage(tool, "failed while marshalling documents: %s", err), nil
+		return "", fmt.Errorf("failed while marshalling documents: %w", err)
 	}
 	result := string(content)
+	log.Printf("Tool returned with '%d' results.\n", len(rawPapers))
 	return result, nil
+}
+
+var ArxivSearcher = Tool[arxivSearcherArgs]{
+	name:                   arxivSearcherName,
+	description:            arxivSearcherDescription,
+	callback:               searchArxiv,
+	introspectionCallbacks: Logger,
 }

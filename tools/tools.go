@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -9,14 +10,44 @@ import (
 	"github.com/tmc/langchaingo/tools"
 )
 
-type LogHandler struct {
-	callbacks.SimpleHandler
+type Tool[T any] struct {
+	tools.Tool
+	name                   string
+	description            string
+	callback               func(ctx context.Context, args T) (string, error)
+	introspectionCallbacks callbacks.Handler
 }
 
-func (h LogHandler) HandleToolError(ctx context.Context, err error) {
-	log.Printf("failed while running tool: %s\n", err.Error())
+func (tool Tool[T]) Name() string {
+	return tool.name
 }
 
-func makeToolErrorMessage(tool tools.Tool, message string, err error) string {
-	return fmt.Sprintf("Tool '%s' %s: %s", tool.Name(), message, err.Error())
+func (tool Tool[T]) Description() string {
+	return tool.description
+}
+
+func (tool Tool[T]) Call(ctx context.Context, input string) (string, error) {
+	log.Printf("Calling tool '%s' with input '%s'.\n", tool.Name(), input)
+	if tool.introspectionCallbacks != nil {
+		tool.introspectionCallbacks.HandleToolStart(ctx, input)
+	}
+	var args T
+	if err := json.Unmarshal([]byte(input), &args); err != nil {
+		if tool.introspectionCallbacks != nil {
+			tool.introspectionCallbacks.HandleToolError(ctx, err)
+		}
+		return fmt.Sprintf("Tool '%s' failed while unmarshalling arguments: %s", tool.Name(), err), nil
+	}
+	log.Printf("Calling tool '%s' callback with args '%+v'.\n", tool.Name(), args)
+	result, err := tool.callback(ctx, args)
+	if err != nil {
+		if tool.introspectionCallbacks != nil {
+			tool.introspectionCallbacks.HandleToolError(ctx, err)
+		}
+		return fmt.Sprintf("Tool '%s' failed while running tool: %s", tool.Name(), err), nil
+	}
+	if tool.introspectionCallbacks != nil {
+		tool.introspectionCallbacks.HandleToolEnd(ctx, result)
+	}
+	return result, nil
 }
