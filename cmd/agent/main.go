@@ -18,8 +18,7 @@ const (
 Find papers related to '{topic}' in your knowledge database. If you find no relevant papers in your database, find
 papers in arXiv related to '{topic}'. For each relevant paper you find, provide the title, summary, authors,
 and download link, and download the paper. If you find no relevant papers in either the database or arXiv, please say
-"No papers found".
-`
+"No papers found".`
 )
 
 func run() error {
@@ -32,6 +31,7 @@ func run() error {
 	agent := agents.NewOneShotAgent(
 		constants.Llm,
 		agentTools,
+		agents.WithCallbacksHandler(tools.Logger), // Callbacks for introspection of the agent itself
 		agents.WithMaxIterations(10),
 	)
 	executor := agents.NewExecutor(agent)
@@ -39,7 +39,7 @@ func run() error {
 	query := strings.ReplaceAll(queryTemplate, "{topic}", "Diffusion Models")
 	fmt.Println("Prompt: ", query)
 	answer, err := chains.Run(context.Background(), executor, query)
-	fmt.Println(answer)
+	fmt.Println("Answer: ", answer)
 	return err
 }
 
