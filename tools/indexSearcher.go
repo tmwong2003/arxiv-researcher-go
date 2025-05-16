@@ -7,6 +7,14 @@ import (
 	"log"
 )
 
+// Singleton [Tool] instance to search the document index for relevant papers to a user keyword query.
+var IndexSearcher = Tool[indexSearcherArgs]{
+	name:                   indesSearcherName,
+	description:            indexSearcherDescription,
+	Callback:               searchIndex,
+	introspectionCallbacks: Logger,
+}
+
 const (
 	indesSearcherName        = "IndexSearcher"
 	indexSearcherDescription = `
@@ -21,11 +29,17 @@ Failure: Returns an error message.
 `
 )
 
+// The arguments for the [IndexSearcher] tool. The structure and the [IndexSearcher] tool description must remain in
+// sync with each other to ensure that agents call the tool with the correct JSON argument keys.
 type indexSearcherArgs struct {
 	Query string `json:"query"`
 	N     int    `json:"n"`
 }
 
+// Search a document index for relevant papers to a user keyword query.
+//
+// Returns a JSON array of dictionary objects containing the title, summary, authors, and PDF download link for each
+// paper if the search is successful, otherwise returns an error message.
 func searchIndex(_ context.Context, args indexSearcherArgs) (string, error) {
 	index, err := GetIndex()
 	if err != nil {
@@ -51,11 +65,4 @@ func searchIndex(_ context.Context, args indexSearcherArgs) (string, error) {
 	result := string(content)
 	log.Printf("Tool returned with '%d' results.\n", len(rawDocuments))
 	return result, nil
-}
-
-var IndexSearcher = Tool[indexSearcherArgs]{
-	name:                   indesSearcherName,
-	description:            indexSearcherDescription,
-	callback:               searchIndex,
-	introspectionCallbacks: Logger,
 }

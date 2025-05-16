@@ -12,14 +12,20 @@ import (
 	"tmwong.org/arxiv-researcher-go/constants"
 )
 
+// Represents a connection to a Pinecone index that holds documents for a RAG-based chatbot agent.
 type Index struct {
 	context context.Context
 	store   pinecone.Store
 }
 
+// Singleton [Index] connection instance used by a chatbot agent.
 var index *Index = nil
 
-// Create a new Index instance and connect to Pinecone.
+// Get the singleton [Index] connection. On the first call, we open a new connection to Pinecone and attach a document
+// embedder that computes vector representations of (text) documents for use when indexing documents for storage and
+// retrieval. On subsequent calls, we return the existing connection.
+//
+// Returns the singleton connection if it exists, otherwise returns an error.
 func GetIndex() (*Index, error) {
 	if index == nil {
 		var err error
@@ -42,6 +48,10 @@ func GetIndex() (*Index, error) {
 	return index, nil
 }
 
+// Add a set of papers to the document index. We treat the concatenated title and summary of each paper as the
+// document to index, and the metadata of each paper as the metadata of that document.
+//
+// Returns nil if we add the papers successfully, otherwise returns an error.
 func (index *Index) AddPapers(papers []Paper) error {
 	documents := make([]schema.Document, len(papers))
 	for i, paper := range papers {
