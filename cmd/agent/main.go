@@ -1,9 +1,24 @@
+/*
+Search for research papers related to a given topic.
+The agent takes a short topic keyword phrase as input, and searches for relevant papers in its knowledge database.
+If it find no papers in its database, it expands its search to axXiv.
+After completing its search, the agent will display a list of any relevant papers it found,
+and will also download the papers to the local file system.
+
+Usage:
+
+	$ go run cmd/agent/main.go <topic keyword>
+
+where <topic keyword> is a short phrase describing the topic of interest.
+*/
 package main
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/tmc/langchaingo/agents"
 	"github.com/tmc/langchaingo/chains"
@@ -12,7 +27,13 @@ import (
 	"tmwong.org/arxiv-researcher-go/tools"
 )
 
+// Prompt templates for a zero-shot agent that searches for research papers related to a given topic keyword. The
+// LangChainGo [agents.OneShotZeroAgent] prepares a prompt for the LLM using a prefix, a set of format instructions,
+// and a suffix.
 const (
+	// Agents use the prefix template to include common execution context for all of its prompts to the the LLM.
+	// The prefix includes natural-language instructions to describe the desired task/behavior of the agent, and a
+	// placeholder (.tool_descriptions) for the set of available tools for accessing external data sources.
 	prefix = `Today is {{.today}}.
 You are a research assistant. You have access to a database of research papers and the arXiv database. When asked
 for papers relevant to given topic keyword, you should search for related to the topic in your knowledge database. If
@@ -24,22 +45,32 @@ found".
 You have access to the following tools:
 {{.tool_descriptions}}
 `
+	// The agent uses the format instructions to declare to the LLM how it expects to receive responses from the LLM.
+	// Our agent does not use LLM responses directly, so we do not override the default used by
+	// [agents.OneShotZeroAgent].
+	//  formatInstructions
+	// Agents use the suffix template to pass the user query and scratchpad (i.e., the agent memory) to the LLM. Even
+	// though the user invokes the agent only once (as opposed to having an interactive conversation with the agent),
+	// the agent itself may have multiple iterations in its own internal conversation with the LLM, and thus uses its
+	// scratchpad to pass the record of its conversation back and forth with the LLM.
 	suffix = `Begin!
 Topic keyword: {{.input}}
 {{.agent_scratchpad}}`
 )
 
 func run() error {
+	// Declare the tools that the agent can use to access external data sources.
 	agentTools := []lcgTools.Tool{
 		tools.ArxivSearcher,
 		tools.IndexSearcher,
 		tools.PaperDownloader,
 	}
-
+	// Create a new one-shot agent that uses our custom prompt templates.
 	agent := agents.NewOneShotAgent(
 		constants.Llm,
 		agentTools,
-		agents.WithCallbacksHandler(tools.Logger), // Callbacks for introspection of the agent itself
+		// Callbacks for introspection of agent execution, as opposed to callbacks for tool execution.
+		agents.WithCallbacksHandler(tools.Logger),
 		agents.WithPromptPrefix(prefix),
 		agents.WithPromptSuffix(suffix),
 	)
@@ -48,7 +79,12 @@ func run() error {
 		agents.WithMaxIterations(25),
 	)
 
-	query := "Diffusion Models"
+	query := ""
+	if len(os.Args) > 1 {
+		query = strings.Join(os.Args[1:], " ")
+	} else {
+		query = "one-shot agents"
+	}
 	fmt.Println("Query: ", query)
 	answer, err := chains.Run(context.Background(), executor, query)
 	fmt.Println("Answer: ", answer)
@@ -57,6 +93,6 @@ func run() error {
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal("failed while running chatbot: ", err)
+		log.Fatal("Failed while running chatbot: ", err)
 	}
 }

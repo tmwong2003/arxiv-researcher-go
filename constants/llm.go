@@ -7,14 +7,16 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
-var Llm *openai.LLM // The LLM used to generate responses to user queries.
+// The singleton LLM instance used to generate responses to user/agent queries.
+var Llm *openai.LLM
 
 var llmEmbedding = "text-embedding-3-small"
 var llmModel = "gpt-4o-mini"
 
+// Initialize constants for the tools package.
+// In particular, initialize the OpenAI LLM model.
+// Unlike Llama, LangChainGo obtains the OpenAI API key implicitly from the O/S environment.
 func init() {
-	// Initialize constants for the tools package. In particular, initialize the OpenAI LLM model.
-	// Unlike Llama, LangChainGo obtains the OpenAI API key implicitly.
 	var err error
 	err = godotenv.Load("/Users/tmwong/code/arxiv-researcher-go/.env")
 	if err != nil {
