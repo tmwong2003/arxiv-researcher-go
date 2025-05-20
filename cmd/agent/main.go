@@ -1,9 +1,9 @@
 /*
 Search for research papers related to a given topic.
-The agent takes a short topic keyword phrase as input, and searches for relevant papers in its knowledge database.
-If it find no papers in its database, it expands its search to axXiv.
-After completing its search, the agent will display a list of any relevant papers it found,
-and will also download the papers to the local file system.
+The agent takes a short topic keyword phrase as input and searches for relevant papers in its knowledge database.
+If it finds no papers in its database, it expands its search to arXiv.
+After completing its search, the agent will display a list of any relevant papers it found
+and download the papers to the local file system.
 
 Usage:
 
