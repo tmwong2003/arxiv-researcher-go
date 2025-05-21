@@ -18,7 +18,7 @@ var llmModel = "gpt-4o-mini"
 // Unlike Llama, LangChainGo obtains the OpenAI API key implicitly from the O/S environment.
 func init() {
 	var err error
-	err = godotenv.Load("/Users/tmwong/code/arxiv-researcher-go/.env")
+	err = godotenv.Load(".env")
 	if err != nil {
 		log.Fatalln("failed while loading .env file: ", err)
 	}
