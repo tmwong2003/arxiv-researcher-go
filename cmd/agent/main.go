@@ -1,15 +1,18 @@
 /*
-Search for research papers related to a given topic.
-The agent takes a short topic keyword phrase as input and searches for relevant papers in its knowledge database.
-If it finds no papers in its database, it expands its search to arXiv.
-After completing its search, the agent will display a list of any relevant papers it found
-and download the papers to the local file system.
+Search for papers in a knowledge base on some general topic of interest.
 
 Usage:
 
-	$ go run cmd/agent/main.go <topic keyword>
+	$ go run cmd/agent/main.go <topic phrase>
 
-where <topic keyword> is a short phrase describing the topic of interest.
+where <topic phrase> is a query phrase describing the topic.
+The agent takes the query phrase,
+and searches its knowledge database for relevant papers.
+If the agent finds no relevant papers,
+it expands its search to arXiv.
+After completing its search,
+the agent will display a list of any relevant papers it found
+and download the papers to the local file system.
 */
 package main
 
@@ -27,7 +30,7 @@ import (
 	"tmwong.org/arxiv-researcher-go/tools"
 )
 
-// Prompt templates for a zero-shot agent that searches for research papers related to a given topic keyword. The
+// Prompt templates for a zero-shot agent that searches for research papers related to a given topic phrase. The
 // LangChainGo [agents.OneShotZeroAgent] prepares a prompt for the LLM using a prefix, a set of format instructions,
 // and a suffix.
 const (
@@ -36,7 +39,7 @@ const (
 	// placeholder (.tool_descriptions) for the set of available tools for accessing external data sources.
 	prefix = `Today is {{.today}}.
 You are a research assistant. You have access to a database of research papers and the arXiv database. When asked
-for papers relevant to given topic keyword, you should search for related to the topic in your knowledge database. If
+for papers relevant to given topic phrase, you should search for related to the topic in your knowledge database. If
 you find no relevant papers in your database, find papers in arXiv related to the topic. For each relevant paper you
 find, provide the title, summary, authors, and download link. If you find relevant papers, you should download the
 papers to the local file system. If you find no relevant papers in either the database or arXiv, please say "No papers
@@ -54,7 +57,7 @@ You have access to the following tools:
 	// the agent itself may have multiple iterations in its own internal conversation with the LLM, and thus uses its
 	// scratchpad to pass the record of its conversation back and forth with the LLM.
 	suffix = `Begin!
-Topic keyword: {{.input}}
+Topic phrase: {{.input}}
 {{.agent_scratchpad}}`
 )
 

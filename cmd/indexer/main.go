@@ -1,11 +1,14 @@
 /*
-Populate a knowledge database with papers from arXiv related to a given topic.
+Populate a private knowledge database with papers from arXiv on a specifc topic of interest.
 
 Usage:
 
-	$ go run cmd/agent/main.go <topic keyword>
+	$ go run cmd/agent/main.go <topic phrase>
 
-where <topic keyword> is a short phrase describing the topic of interest.
+where <topic phrase> is a query phrase describing the topic.
+The indexer takes the query phrase,
+searches arXiv for relevant papers,
+and saves metadata for the papers (including abstracts) in its database.
 */
 package main
 
